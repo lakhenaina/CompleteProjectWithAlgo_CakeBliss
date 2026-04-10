@@ -142,12 +142,16 @@
   }
 function buyNow(productId){
   const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-  const item = cart.find(i => i.productId === productId);
+  const item = cart.find(i => {
+    const id = typeof i === 'string' ? i : (i.productId || i.product);
+    return id === productId;
+  });
+  const quantity = item && typeof item === 'object' ? (item.quantity || 1) : 1;
+
   if(item){
-    alert(`You bought ${item.quantity} of this product!`);
-    // optionally remove from cart after buying
-   
+    alert(`You are checking out ${quantity} of this product.`);
   }
+
   // Redirect to checkout page with the single product ID
   window.location.href = `checkout.html?productId=${productId}`;
 }

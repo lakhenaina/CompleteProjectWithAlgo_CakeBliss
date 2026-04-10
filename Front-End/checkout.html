@@ -57,13 +57,13 @@ body {
       <label>Delivery Date *</label>
       <input type="date" id="deliveryDate" required>
 
-      <label>Time Slot (optional)</label>
+      <!-- <label>Time Slot (optional)</label>
       <select id="timeSlot">
         <option value="">-- Select Time Slot --</option>
         <option>10:00 AM - 01:00 PM</option>
         <option>01:00 PM - 04:00 PM</option>
         <option>04:00 PM - 07:00 PM</option>
-      </select>
+      </select> -->
 
       <label>Order Notes (optional)</label>
       <textarea id="orderNotes"></textarea>
@@ -81,12 +81,32 @@ body {
 
 <script>
 document.addEventListener("DOMContentLoaded", async () => {
-  const cartItems = JSON.parse(localStorage.getItem("cart") || "[]");
+  const urlParams = new URLSearchParams(window.location.search);
+  const buyNowProductId = urlParams.get("productId");
+
+  let cartItems = JSON.parse(localStorage.getItem("cart") || "[]");
+
+  if (buyNowProductId) {
+    const matched = cartItems.find(ci => {
+      const id = typeof ci === 'string' ? ci : (ci.productId || ci.product);
+      return id === buyNowProductId;
+    });
+
+    if (matched) {
+      const qty = typeof matched === 'object' ? (matched.quantity || 1) : 1;
+      cartItems = [{ productId: buyNowProductId, quantity: qty }];
+    } else {
+      cartItems = [{ productId: buyNowProductId, quantity: 1 }];
+    }
+  }
+
   if(!cartItems.length){
     document.getElementById("orderItems").innerHTML = "<p>Your cart is empty.</p>";
     document.getElementById("orderTotal").textContent = "0";
     return;
   }
+
+  window.selectedCheckoutItems = cartItems;
 
   try {
     const res = await fetch("http://localhost:3001/products");
@@ -122,7 +142,8 @@ async function placeOrder(){
   const deliveryLocation = document.getElementById("deliveryLocation").value.trim();
   const receiverPhone = document.getElementById("receiverPhone").value.trim();
   const deliveryDate = document.getElementById("deliveryDate").value.trim();
-  const timeSlot = document.getElementById("timeSlot").value;
+  const timeSlotElement = document.getElementById("timeSlot");
+  const timeSlot = timeSlotElement ? timeSlotElement.value : "";
   const orderNotes = document.getElementById("orderNotes").value.trim();
 
   if(!senderName || !senderEmail || !deliveryLocation || !receiverPhone || !deliveryDate){
@@ -130,19 +151,38 @@ async function placeOrder(){
     return;
   }
 
-  const cartItems = JSON.parse(localStorage.getItem("cart") || "[]");
+  const cartItems = window.selectedCheckoutItems || JSON.parse(localStorage.getItem("cart") || "[]");
   if(!cartItems.length){
     alert("Your cart is empty.");
     return;
   }
 
-  const userId = localStorage.getItem("userId");
-  if(!userId){
+  let userId = localStorage.getItem("userId");
+  if (!userId) {
+    const storedUser = JSON.parse(localStorage.getItem("user") || "null");
+    userId = storedUser ? (storedUser._id || storedUser.id) : null;
+  }
+
+  if (!userId) {
+    console.warn('No userId found in localStorage:', {
+      userId: localStorage.getItem('userId'),
+      cookie: document.cookie,
+      token: localStorage.getItem('token'),
+      userToken: localStorage.getItem('userToken')
+    });
     alert("You must log in first.");
     return;
   }
 
   try {
+    const token = localStorage.getItem("token") || localStorage.getItem("userToken") || localStorage.getItem("adminToken");
+    // If user login does not provide auth token (rare), we continue if userId is present.
+    // Some setups use only userId for guest checkout.
+    if (!token && !userId) {
+      alert("You must log in first.");
+      return;
+    }
+
     const res = await fetch("http://localhost:3001/products");
     const data = await res.json();
     const products = data.data || [];
@@ -157,12 +197,12 @@ async function placeOrder(){
 
     const totalAmount = items.reduce((sum,i)=>sum+i.price*i.quantity,0);
 
-    const token = localStorage.getItem("userToken");
+    const orderToken = localStorage.getItem("token") || localStorage.getItem("userToken");
     const orderResponse = await fetch("http://localhost:3001/orders", {
       method: "POST",
       headers: { 
         "Content-Type": "application/json",
-        "Authorization": token ? `Bearer ${token}` : ""
+        "Authorization": orderToken ? `Bearer ${orderToken}` : ""
       },
       body: JSON.stringify({
         userId,
@@ -175,13 +215,39 @@ async function placeOrder(){
         receiverPhone,
         deliveryDate,
         timeSlot,
-        orderNotes
+        orderNotes,
+        deliveryDetails: {
+          senderName,
+          senderEmail,
+          deliveryLocation,
+          receiverPhone,
+          deliveryDate,
+          deliveryTimeSlot: timeSlot
+        }
       })
     });
 
     const result = await orderResponse.json();
+    console.log('checkout order response', { status: orderResponse.status, result, orderToken });
+
+    if (!orderResponse.ok) {
+      alert("Order request failed: " + (result.message || orderResponse.statusText));
+      return;
+    }
+
     if(result.success){
-      localStorage.removeItem("cart");
+      const buyNowProductId = new URLSearchParams(window.location.search).get("productId");
+      if (buyNowProductId) {
+        const currentCart = JSON.parse(localStorage.getItem("cart") || "[]");
+        const remaining = currentCart.filter(ci => {
+          const id = typeof ci === 'string' ? ci : (ci.productId || ci.product);
+          return id !== buyNowProductId;
+        });
+        localStorage.setItem("cart", JSON.stringify(remaining));
+      } else {
+        localStorage.removeItem("cart");
+      }
+
       if(method === "esewa"){
         const esewaUrl = `https://esewa.com.np/epay/main?amt=${totalAmount}&pid=${result.orderId}&su=${window.location.origin}/order-success.html&fu=${window.location.origin}/order-fail.html`;
         window.location.href = esewaUrl;

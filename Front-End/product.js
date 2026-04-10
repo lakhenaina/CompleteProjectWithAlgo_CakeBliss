@@ -54,7 +54,7 @@ function loadProducts(category = "All") {
 }
 
 function addToCart(productId) {
-  const token = localStorage.getItem("userToken");
+  const token = localStorage.getItem("token") || localStorage.getItem("userToken");
   if (!token) {
     window.location.href = "login.html";
     return;

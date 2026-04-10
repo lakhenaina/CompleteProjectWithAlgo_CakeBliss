@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Search Results | Cake's Bliss</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="../style.css" />
   <style>
     .products-grid {
       display: grid;
@@ -14,44 +14,56 @@
       margin: 2rem auto;
       padding: 1rem;
     }
+
     .product-card {
       background: #fff;
       border-radius: 8px;
       box-shadow: 0 0 8px rgba(0,0,0,0.1);
       padding: 1rem;
       text-align: center;
-      cursor: pointer;
       transition: transform 0.2s;
     }
+
     .product-card:hover {
       transform: scale(1.03);
     }
+
     .product-card img {
       max-width: 100%;
       border-radius: 6px;
       height: 160px;
       object-fit: cover;
     }
+
+    .message {
+      text-align: center;
+      grid-column: 1 / -1;
+      color: #555;
+    }
   </style>
 </head>
 <body>
   <!-- Support Bar -->
   <div class="support-bar">Customer Support [Viber/WhatsApp: 9849647693]</div>
-  
-  <!-- Navbar -->
+
+  <!-- Customer Navbar -->
   <nav class="main-navbar">
     <div class="navbar-left">
-      <a class="logo-link" href="index.html"><div class="logo">🍰 Cake's Bliss</div></a>
+      <a class="logo-link" href="customer-dashboard.html">
+        <div class="logo">🍰 Cake's Bliss</div>
+      </a>
+
       <div class="browse-dropdown">
         <button class="browse-btn">Browse Categories ▾</button>
         <div class="dropdown-content">
-          <a href="#">Black Forest Cake</a>
-          <a href="#">Butter Scotch Cake</a>
-          <a href="#">Red Velvet Cake</a>
-          <a href="#">Fruit Cakes</a>
-          <a href="#">Blueberry Cake</a>
+          <a href="products.html?category=Black Forest Cake">Black Forest Cake</a>
+          <a href="products.html?category=Butter Scotch Cake">Butter Scotch Cake</a>
+          <a href="products.html?category=Red Velvet Cake">Red Velvet Cake</a>
+          <a href="products.html?category=Fruit Cakes">Fruit Cakes</a>
+          <a href="products.html?category=Blueberry Cake">Blueberry Cake</a>
         </div>
       </div>
+
       <ul class="nav-links">
         <li><a href="index.html">Home</a></li>
         <li><a href="products.html">Products</a></li>
@@ -59,47 +71,90 @@
         <li><a href="contact.html">Contact</a></li>
       </ul>
     </div>
+
     <div class="navbar-right">
       <input type="text" id="search-input" placeholder="Search for products">
-      <button id="search-button">🔍</button>
-      <a href="login.html" class="login-button">Login</a>
+      <button id="search-button" type="button">🔍</button>
+      <a href="customer-dashboard.html" class="login-button">Logout</a>
     </div>
   </nav>
-  
-  <!-- Search results -->
+
   <main>
     <h2 style="text-align:center; margin-top:20px;">Search Results</h2>
     <div class="products-grid" id="search-results"></div>
   </main>
 
   <script>
-    // search bar action
-    document.getElementById("search-button").addEventListener("click", function() {
-      const query = document.getElementById("search-input").value.trim();
+    const searchInput = document.getElementById("search-input");
+    const searchButton = document.getElementById("search-button");
+    const resultsContainer = document.getElementById("search-results");
+
+    const userId = localStorage.getItem("userId");
+    const detailPage = userId ? "customer-product-details.html" : "product_detail.html";
+
+    // Keep logged-in users on customer flow
+    if (userId) {
+      const homeLink = document.querySelector('.nav-links li a[href="index.html"]');
+      if (homeLink) homeLink.href = "customer-dashboard.html";
+      const logoutLink = document.querySelector('.navbar-right .login-button');
+      if (logoutLink) {
+        logoutLink.textContent = "Logout";
+        logoutLink.href = "login.html";
+      }
+    }
+
+    searchButton.addEventListener("click", function (e) {
+      e.preventDefault();
+      const query = searchInput.value.trim();
       if (query) {
         window.location.href = `search-results.html?query=${encodeURIComponent(query)}`;
       }
     });
 
+    searchInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const query = searchInput.value.trim();
+        if (query) {
+          window.location.href = `search-results.html?query=${encodeURIComponent(query)}`;
+        }
+      }
+    });
+
     async function loadSearchResults() {
       const urlParams = new URLSearchParams(window.location.search);
-      const query = urlParams.get("query");
-      if (!query) return;
+      const query = urlParams.get("query")?.trim();
+
+      if (!query) {
+        resultsContainer.innerHTML = `<p class="message">No search query provided.</p>`;
+        return;
+      }
+
+      searchInput.value = query;
 
       try {
-        const res = await fetch(`http://localhost:3001/search?q=${encodeURIComponent(query)}`);
+        const res = await fetch("http://localhost:3001/products");
         const data = await res.json();
         const products = data.data || [];
-        const container = document.getElementById("search-results");
-        container.innerHTML = "";
-        if (products.length === 0) {
-          container.innerHTML = "<p style='text-align:center;'>No products found.</p>";
+
+        const filtered = products.filter(prod => {
+          const title = (prod.title || "").toLowerCase();
+          const description = (prod.description || "").toLowerCase();
+          const searchTerm = query.toLowerCase();
+          return title.includes(searchTerm) || description.includes(searchTerm);
+        });
+
+        resultsContainer.innerHTML = "";
+
+        if (filtered.length === 0) {
+          resultsContainer.innerHTML = `<p class="message">No products found for "${query}".</p>`;
           return;
         }
-        products.forEach(prod => {
-          container.innerHTML += `
+
+        filtered.forEach(prod => {
+          resultsContainer.innerHTML += `
             <div class="product-card">
-              <a href="product_detail.html?id=${prod._id}" style="text-decoration:none; color:inherit;">
+              <a href="${detailPage}?id=${prod._id}" style="text-decoration:none; color:inherit;">
                 <img src="${prod.imageUrl}" alt="${prod.title}">
                 <h3>${prod.title}</h3>
                 <p>${prod.description || ""}</p>
@@ -108,9 +163,10 @@
             </div>
           `;
         });
-      } catch (err) {
-        console.error("Search load error", err);
-        document.getElementById("search-results").innerHTML = "<p style='text-align:center;'>Failed to load search results.</p>";
+
+      } catch (error) {
+        console.error("Search error:", error);
+        resultsContainer.innerHTML = `<p class="message">Failed to load search results.</p>`;
       }
     }
 

@@ -79,7 +79,6 @@
     </div>
 
     <div class="section" id="senderDetails"></div>
-    <div class="section" id="receiverDetails"></div>
     <div class="section" id="deliveryDetails"></div>
 
     <button id="markPaymentBtn" style="display:none">Mark Payment Received</button>
@@ -104,6 +103,7 @@
       .then(res => res.json())
       .then(data => {
         const order = data.data;
+        console.log('order-detail order object:', order);
 
         document.getElementById("orderSummary").innerHTML = `
           <h2>Order #${order.orderNumber}</h2>
@@ -122,22 +122,17 @@
 
         document.getElementById("senderDetails").innerHTML = `
           <h2>Sender Details</h2>
-          <p><strong>Full Name:</strong> ${order.deliveryDetails?.senderName || 'N/A'}</p>
-          <p><strong>Phone:</strong> ${order.deliveryDetails?.senderPhone || 'N/A'}</p>
-          <p><strong>Email:</strong> ${order.deliveryDetails?.senderEmail || 'N/A'}</p>
-          <p><strong>Delivery Location:</strong> ${order.deliveryDetails?.deliveryLocation || 'N/A'}</p>
-        `;
-
-        document.getElementById("receiverDetails").innerHTML = `
-          <h2>Receiver Details</h2>
-          <p><strong>Contact 1:</strong> ${order.deliveryDetails?.receiverContact1 || 'N/A'}</p>
-          <p><strong>Contact 2:</strong> ${order.deliveryDetails?.receiverContact2 || 'N/A'}</p>
+          <p><strong>Full Name:</strong> ${order.deliveryDetails?.senderName || order.senderName || order.user?.name || 'N/A'}</p>
+          <p><strong>Phone:</strong> ${order.user?.phoneNumber || order.deliveryDetails?.receiverPhone || order.deliveryDetails?.senderPhone || order.receiverPhone || order.senderPhone || 'N/A'}</p>
+          <p><strong>Email:</strong> ${order.deliveryDetails?.senderEmail || order.senderEmail || order.user?.email || 'N/A'}</p>
+          <p><strong>Delivery Location:</strong> ${order.deliveryDetails?.deliveryLocation || order.deliveryLocation || 'N/A'}</p>
         `;
 
         document.getElementById("deliveryDetails").innerHTML = `
           <h2>Delivery Details</h2>
-          <p><strong>Delivery Date:</strong> ${order.deliveryDetails?.deliveryDate || 'N/A'}</p>
-          <p><strong>Time Slot:</strong> ${order.deliveryDetails?.deliveryTimeSlot || 'N/A'}</p>
+          <p><strong>Delivery Date:</strong> ${order.deliveryDetails?.deliveryDate || order.deliveryDate || order.date || 'N/A'}</p>
+          
+          <p><strong>Notes:</strong> ${order.deliveryDetails?.orderNotes || order.orderNotes || 'None'}</p>
         `;
 
         if (order.paymentStatus === "pending") {

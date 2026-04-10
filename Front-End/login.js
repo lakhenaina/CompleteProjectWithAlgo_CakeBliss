@@ -40,15 +40,19 @@ async function login(event) {
 
         // Store user data in localStorage
         if (data.token) {
-          // Admin login
+          // Admin and customer tokens
           localStorage.setItem('token', data.token);
+          localStorage.setItem('userToken', data.token);
           localStorage.setItem('role', data.role);
         }
-        if (data.userId) {
-          // Customer login
-          localStorage.setItem('userId', data.userId);
-          localStorage.setItem('role', data.role);
+
+        const userId = data.userId || (data.user && data.user._id) || data._id || data.id;
+        if (userId) {
+          localStorage.setItem('userId', userId);
+          localStorage.setItem('role', data.role || localStorage.getItem('role'));
         }
+
+        console.log('login success:', { userId, token: data.token, role: data.role, response: data });
 
         // Redirect based on role
         setTimeout(() => {

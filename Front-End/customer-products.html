@@ -60,7 +60,7 @@
    
 
   <!-- Main Navbar -->
-<div class="support-bar">Customer Support [Viber/WhatsApp: 9849647693]</div> <nav class="main-navbar"> <div class="navbar-left"> <a class="logo-link" href="customer-dashboard.html"><div class="logo">🍰 Cake's Bliss</div></a> <div class="browse-dropdown"> <button class="browse-btn">Browse Categories ▾</button> <div class="dropdown-content"> <a href="#">Black Forest Cake</a> <a href="#">Butter Scotch Cake</a> <a href="#">Red Velvet Cake</a> <a href="#">Fruit Cakes</a> <a href="#">Blueberry Cake</a> </div> </div> <ul class="nav-links"> <li><a href="customer-dashboard.html">Home</a></li> <li><a href="customer-about.html">About</a></li> <li><a href="customer-products.html">Products</a></li> <li><a href="customer-contact.html">Contact</a></li> <li><a href="customer-orders.html">My Orders</a></li> </ul> </div> <div class="navbar-right"> <a href="cart.html" class="login-button">🛒 Cart</a> <button onclick="logout()" class="login-button">Logout</button> </div> </nav>
+<div class="support-bar">Customer Support [Viber/WhatsApp: 9849647693]</div> <nav class="main-navbar"> <div class="navbar-left"> <a class="logo-link" href="customer-dashboard.html"><div class="logo">🍰 Cake's Bliss</div></a> <div class="browse-dropdown"> <button class="browse-btn">Browse Categories ▾</button> <div class="dropdown-content"> <a href="customer-products.html?category=Black Forest Cake">Black Forest Cake</a> <a href="customer-products.html?category=Butter Scotch Cake">Butter Scotch Cake</a> <a href="customer-products.html?category=Red Velvet Cake">Red Velvet Cake</a> <a href="customer-products.html?category=Fruit Cakes">Fruit Cakes</a> <a href="customer-products.html?category=Blueberry Cake">Blueberry Cake</a> </div> </div> <ul class="nav-links"> <li><a href="customer-dashboard.html">Home</a></li> <li><a href="customer-about.html">About</a></li> <li><a href="customer-products.html">Products</a></li> <li><a href="customer-contact.html">Contact</a></li> <li><a href="customer-orders.html">My Orders</a></li> </ul> </div> <div class="navbar-right"> <a href="cart.html" class="login-button">🛒 Cart</a> <button onclick="logout()" class="login-button">Logout</button> </div> </nav>
 
   <!-- <h1>Our Products</h1> -->
   <div id="products-grid"></div>
@@ -68,15 +68,40 @@
   
   <script>
     const userId = localStorage.getItem("userId");
-    if (!userId) window.location.href = "login.html";
+    if (!userId) window.location.href = "customer-dashboard.html";
 
     async function loadProducts() {
+      const params = new URLSearchParams(window.location.search);
+      const category = params.get("category")?.trim();
+
       try {
         const res = await fetch("http://localhost:3001/products");
         const data = await res.json();
-        const products = data.data || [];
+        let products = data.data || [];
+
+        if (category) {
+          const categoryLower = category.toLowerCase();
+          products = products.filter(prod => {
+            const prodCategory = (prod.category || "").toLowerCase();
+            const title = (prod.title || "").toLowerCase();
+            const desc = (prod.description || "").toLowerCase();
+            return prodCategory.includes(categoryLower) || title.includes(categoryLower) || desc.includes(categoryLower);
+          });
+
+          const heading = document.querySelector("h1") || document.createElement("h1");
+          heading.textContent = `Category: ${category}`;
+          if (!document.querySelector("h1")) {
+            document.body.insertBefore(heading, document.getElementById("products-grid"));
+          }
+        }
+
         const grid = document.getElementById("products-grid");
         grid.innerHTML = "";
+
+        if (products.length === 0) {
+          grid.innerHTML = `<p>No products found for '${category || "all"}'.</p>`;
+          return;
+        }
 
         products.forEach(prod => {
           grid.innerHTML += `
@@ -93,6 +118,7 @@
         });
       } catch(err) {
         console.error(err);
+        document.getElementById("products-grid").innerHTML = "<p>Failed to load products.</p>";
       }
     }
 
@@ -116,9 +142,7 @@
       window.location.href = "login.html";
     }
 
-    loadProducts();''
-    
-    
+    loadProducts();
   </script>
 </body>
 </html>
